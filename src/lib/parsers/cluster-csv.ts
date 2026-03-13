@@ -6,28 +6,6 @@ import type {
   ClusterType,
 } from "@/lib/supabase/types";
 
-interface RawClusterRow {
-  keyword: string;
-  cluster_id: string;
-  cluster_name?: string;
-  canonical_query?: string;
-  central_entity?: string;
-  cluster_type?: string;
-  core_outer?: string;
-  priority?: string;
-  coverage_status?: string;
-  existing_url?: string;
-  target_url?: string;
-  total_volume?: string;
-  avg_kd?: string;
-  avg_cpc?: string;
-  potential_score?: string;
-  typ?: string;
-  volume?: string;
-  kd?: string;
-  cpc?: string;
-}
-
 export interface ParsedCluster {
   cluster_id: number;
   name: string;
@@ -81,8 +59,22 @@ function safeClusterType(val: string | undefined): ClusterType {
   return "PRODUCT";
 }
 
+/**
+ * Detects CSV format and parses accordingly:
+ *
+ * Format A — "named" CSV (cluster-per-row from cluster-namer pipeline):
+ *   cluster_id,nazwa,central_entity,canonical_query,liczba_keywords,typ_atrybutu,
+ *   total_volume,avg_position,potential_score,priority,coverage_status,opis
+ *
+ * Format B — "clustered" CSV (keyword-per-row from clustering pipeline):
+ *   keyword,cluster_id,typ
+ *
+ * Format C — combined (keyword-per-row with cluster metadata):
+ *   keyword,cluster_id,cluster_name,canonical_query,...,volume,kd,cpc
+ */
 export function parseClusterCSV(csvText: string): ParsedCluster[] {
-  const { data, errors } = Papa.parse<RawClusterRow>(csvText, {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, errors } = Papa.parse<Record<string, any>>(csvText, {
     header: true,
     skipEmptyLines: true,
     transformHeader: (h) => h.trim().toLowerCase().replace(/\s+/g, "_"),
@@ -92,8 +84,57 @@ export function parseClusterCSV(csvText: string): ParsedCluster[] {
     console.warn("CSV parse warnings:", errors);
   }
 
+  if (data.length === 0) return [];
+
+  const headers = Object.keys(data[0]);
+  const hasKeywordColumn = headers.includes("keyword");
+  const hasNazwaColumn = headers.includes("nazwa");
+
+  // Format A: named CSV (cluster-per-row, no individual keywords)
+  if (hasNazwaColumn && !hasKeywordColumn) {
+    return parseNamedFormat(data);
+  }
+
+  // Format B/C: keyword-per-row
+  return parseKeywordPerRowFormat(data);
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function parseNamedFormat(data: Record<string, any>[]): ParsedCluster[] {
+  const clusters: ParsedCluster[] = [];
+
+  for (const row of data) {
+    const cid = parseInt(row.cluster_id);
+    if (isNaN(cid)) continue;
+
+    clusters.push({
+      cluster_id: cid,
+      name: row.nazwa || row.name || `Cluster ${cid}`,
+      canonical_query: row.canonical_query || null,
+      central_entity: row.central_entity || null,
+      cluster_type: safeClusterType(row.typ_atrybutu || row.cluster_type),
+      core_outer: safeCoreOuter(row.core_outer),
+      priority: safePriority(row.priority),
+      coverage_status: safeCoverage(row.coverage_status),
+      existing_url: row.existing_url || null,
+      target_url: row.target_url || null,
+      total_volume: safeNum(row.total_volume),
+      avg_kd: safeNum(row.avg_kd, 50),
+      avg_cpc: safeNum(row.avg_cpc),
+      potential_score: safeNum(row.potential_score),
+      keywords_count: safeNum(row.liczba_keywords || row.keywords_count),
+      keywords: [], // no individual keywords in this format
+    } as ParsedCluster & { keywords_count: number });
+  }
+
+  return clusters.sort((a, b) => a.cluster_id - b.cluster_id);
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function parseKeywordPerRowFormat(data: Record<string, any>[]): ParsedCluster[] {
   // Group rows by cluster_id
-  const clusterMap = new Map<number, RawClusterRow[]>();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const clusterMap = new Map<number, Record<string, any>[]>();
   for (const row of data) {
     const cid = parseInt(row.cluster_id);
     if (isNaN(cid)) continue;
@@ -103,11 +144,10 @@ export function parseClusterCSV(csvText: string): ParsedCluster[] {
 
   const clusters: ParsedCluster[] = [];
   for (const [clusterId, rows] of clusterMap) {
-    // Use first row for cluster-level metadata
     const first = rows[0];
 
     const keywords: ParsedKeyword[] = rows.map((r) => ({
-      keyword: r.keyword?.trim() || "",
+      keyword: (r.keyword || "").trim(),
       typ: r.typ || null,
       volume: safeNum(r.volume),
       kd: safeNum(r.kd),
@@ -116,7 +156,7 @@ export function parseClusterCSV(csvText: string): ParsedCluster[] {
 
     clusters.push({
       cluster_id: clusterId,
-      name: first.cluster_name || `Cluster ${clusterId}`,
+      name: first.cluster_name || first.nazwa || `Cluster ${clusterId}`,
       canonical_query: first.canonical_query || null,
       central_entity: first.central_entity || null,
       cluster_type: safeClusterType(first.cluster_type),
@@ -134,4 +174,26 @@ export function parseClusterCSV(csvText: string): ParsedCluster[] {
   }
 
   return clusters.sort((a, b) => a.cluster_id - b.cluster_id);
+}
+
+/**
+ * Merges a named CSV (cluster metadata) with a clustered CSV (keywords).
+ * Use when you have both files from the pipeline.
+ */
+export function mergeClusterData(
+  namedCsv: string,
+  clusteredCsv: string
+): ParsedCluster[] {
+  const metadata = parseClusterCSV(namedCsv);
+  const keywords = parseClusterCSV(clusteredCsv);
+
+  const keywordMap = new Map<number, ParsedKeyword[]>();
+  for (const c of keywords) {
+    keywordMap.set(c.cluster_id, c.keywords);
+  }
+
+  return metadata.map((c) => ({
+    ...c,
+    keywords: keywordMap.get(c.cluster_id) || [],
+  }));
 }

@@ -13,6 +13,7 @@ export default function ImportPage() {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [clusteredCsvFile, setClusteredCsvFile] = useState<File | null>(null);
   const [briefFiles, setBriefFiles] = useState<File[]>([]);
   const [result, setResult] = useState<{
     success?: boolean;
@@ -91,9 +92,9 @@ export default function ImportPage() {
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground mb-3">
-              Plik <code>*_named.csv</code> z kolumnami: keyword, cluster_id,
-              cluster_name, priority, core_outer, coverage_status,
-              potential_score, etc.
+              Plik <code>*_named.csv</code> z metadanymi klastrów: cluster_id,
+              nazwa, canonical_query, priority, coverage_status,
+              potential_score, total_volume, etc.
             </p>
             <label
               htmlFor="csv-upload"
@@ -121,6 +122,50 @@ export default function ImportPage() {
               className="hidden"
               required
               onChange={(e) => setCsvFile(e.target.files?.[0] || null)}
+            />
+          </CardContent>
+        </Card>
+
+        {/* Clustered CSV (keywords) */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">
+              Keywords (CSV)
+              <Badge variant="secondary" className="ml-2 text-[10px]">
+                Opcjonalne
+              </Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-3">
+              Plik <code>*_clustered.csv</code> z indywidualnymi keywords (keyword, cluster_id, typ).
+              Jeśli podasz, keywords zostaną przypisane do klastrów.
+            </p>
+            <label
+              htmlFor="clustered-csv-upload"
+              className="flex items-center justify-center gap-2 border-2 border-dashed rounded-lg p-6 cursor-pointer hover:border-primary transition-colors"
+            >
+              {clusteredCsvFile ? (
+                <>
+                  <FileText className="h-5 w-5 text-green-600" />
+                  <span className="text-sm font-medium">{clusteredCsvFile.name}</span>
+                </>
+              ) : (
+                <>
+                  <Upload className="h-5 w-5 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">
+                    Kliknij aby wybrać plik CSV z keywords
+                  </span>
+                </>
+              )}
+            </label>
+            <input
+              id="clustered-csv-upload"
+              name="clustered_csv"
+              type="file"
+              accept=".csv"
+              className="hidden"
+              onChange={(e) => setClusteredCsvFile(e.target.files?.[0] || null)}
             />
           </CardContent>
         </Card>

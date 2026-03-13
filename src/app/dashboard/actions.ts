@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
-import { parseClusterCSV } from "@/lib/parsers/cluster-csv";
+import { parseClusterCSV, mergeClusterData } from "@/lib/parsers/cluster-csv";
 import { generateSchedule } from "@/lib/scheduler/algorithm";
 import type { Cluster } from "@/lib/supabase/types";
 
@@ -25,9 +25,10 @@ export async function importProject(formData: FormData) {
 
   const name = formData.get("name") as string;
   const domain = formData.get("domain") as string;
-  const csvFile = formData.get("clusters_csv") as File;
+  const namedCsvFile = formData.get("clusters_csv") as File;
+  const clusteredCsvFile = formData.get("clustered_csv") as File | null;
 
-  if (!name || !domain || !csvFile) {
+  if (!name || !domain || !namedCsvFile) {
     return { error: "Brakuje wymaganych pól" };
   }
 
@@ -42,9 +43,16 @@ export async function importProject(formData: FormData) {
     return { error: `Projekt: ${projectError.message}` };
   }
 
-  // 2. Parse CSV
-  const csvText = await csvFile.text();
-  const parsedClusters = parseClusterCSV(csvText);
+  // 2. Parse CSV(s) — support named + clustered merge
+  const namedCsvText = await namedCsvFile.text();
+  let parsedClusters;
+
+  if (clusteredCsvFile && clusteredCsvFile.size > 0) {
+    const clusteredCsvText = await clusteredCsvFile.text();
+    parsedClusters = mergeClusterData(namedCsvText, clusteredCsvText);
+  } else {
+    parsedClusters = parseClusterCSV(namedCsvText);
+  }
 
   if (parsedClusters.length === 0) {
     return { error: "CSV nie zawiera żadnych klastrów" };
@@ -67,7 +75,7 @@ export async function importProject(formData: FormData) {
     avg_kd: c.avg_kd,
     avg_cpc: c.avg_cpc,
     potential_score: c.potential_score,
-    keywords_count: c.keywords.length,
+    keywords_count: c.keywords.length || (c as unknown as { keywords_count?: number }).keywords_count || 0,
   }));
 
   const { data: insertedClusters, error: clustersError } = await supabase
