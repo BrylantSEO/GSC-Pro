@@ -16,7 +16,7 @@ export async function updateTaskStatus(taskId: string, status: string) {
     update.completed_at = null;
   }
 
-  await supabase.from("tasks").update(update).eq("id", taskId);
+  await supabase.from("seo_tasks").update(update).eq("id", taskId);
   revalidatePath("/dashboard");
 }
 
@@ -71,7 +71,7 @@ export async function importProject(formData: FormData) {
   }));
 
   const { data: insertedClusters, error: clustersError } = await supabase
-    .from("clusters")
+    .from("seo_clusters")
     .insert(clusterInserts)
     .select();
 
@@ -100,7 +100,7 @@ export async function importProject(formData: FormData) {
     // Insert in batches of 500
     for (let i = 0; i < keywordInserts.length; i += 500) {
       const batch = keywordInserts.slice(i, i + 500);
-      await supabase.from("keywords").insert(batch);
+      await supabase.from("seo_keywords").insert(batch);
     }
   }
 
@@ -113,7 +113,7 @@ export async function importProject(formData: FormData) {
     const titleMatch = content.match(/^#\s+(.+)/m);
     const title = titleMatch ? titleMatch[1] : slug;
 
-    await supabase.from("briefs").insert({
+    await supabase.from("seo_briefs").insert({
       project_id: project.id,
       slug,
       title,
@@ -129,7 +129,7 @@ export async function importProject(formData: FormData) {
   });
 
   if (schedule.length > 0) {
-    await supabase.from("tasks").insert(schedule);
+    await supabase.from("seo_tasks").insert(schedule);
   }
 
   revalidatePath("/dashboard");
@@ -155,7 +155,7 @@ export async function createIntervention(formData: FormData) {
     return { error: "Wypełnij wszystkie wymagane pola" };
   }
 
-  const { error } = await supabase.from("interventions").insert({
+  const { error } = await supabase.from("seo_interventions").insert({
     project_id: projectId,
     task_id: taskId,
     intervention_date: interventionDate,

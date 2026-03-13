@@ -18,7 +18,7 @@ export default async function TrackerPage() {
 
   // Get pages with GSC data (aggregated)
   const { data: pages } = await supabase
-    .from("gsc_page_daily")
+    .from("seo_gsc_page_daily")
     .select("page_url, total_clicks, total_impressions, avg_position, queries_count, date")
     .eq("project_id", project.id)
     .order("date", { ascending: false })
@@ -26,7 +26,7 @@ export default async function TrackerPage() {
 
   // Get interventions for markers
   const { data: interventions } = await supabase
-    .from("interventions")
+    .from("seo_interventions")
     .select("*")
     .eq("project_id", project.id)
     .order("intervention_date", { ascending: false });

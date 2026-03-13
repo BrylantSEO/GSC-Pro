@@ -1,7 +1,8 @@
 -- SEO Project Dashboard — Initial Schema
+-- Prefix: seo_ to avoid conflicts with existing tables
 
 -- Projects
-CREATE TABLE seo_projects (
+CREATE TABLE IF NOT EXISTS seo_projects (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   domain TEXT NOT NULL UNIQUE,
@@ -11,7 +12,7 @@ CREATE TABLE seo_projects (
 );
 
 -- Clusters
-CREATE TABLE clusters (
+CREATE TABLE IF NOT EXISTS seo_clusters (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   project_id UUID REFERENCES seo_projects(id) ON DELETE CASCADE NOT NULL,
   cluster_id INT NOT NULL,
@@ -34,9 +35,9 @@ CREATE TABLE clusters (
 );
 
 -- Keywords
-CREATE TABLE keywords (
+CREATE TABLE IF NOT EXISTS seo_keywords (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  cluster_id UUID REFERENCES clusters(id) ON DELETE CASCADE NOT NULL,
+  cluster_id UUID REFERENCES seo_clusters(id) ON DELETE CASCADE NOT NULL,
   keyword TEXT NOT NULL,
   typ TEXT,
   volume INT DEFAULT 0,
@@ -47,10 +48,10 @@ CREATE TABLE keywords (
 );
 
 -- Content briefs
-CREATE TABLE briefs (
+CREATE TABLE IF NOT EXISTS seo_briefs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   project_id UUID REFERENCES seo_projects(id) ON DELETE CASCADE NOT NULL,
-  cluster_id UUID REFERENCES clusters(id),
+  cluster_id UUID REFERENCES seo_clusters(id),
   slug TEXT NOT NULL,
   title TEXT NOT NULL,
   content_md TEXT NOT NULL,
@@ -59,11 +60,11 @@ CREATE TABLE briefs (
 );
 
 -- Tasks
-CREATE TABLE tasks (
+CREATE TABLE IF NOT EXISTS seo_tasks (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   project_id UUID REFERENCES seo_projects(id) ON DELETE CASCADE NOT NULL,
-  cluster_id UUID REFERENCES clusters(id),
-  brief_id UUID REFERENCES briefs(id),
+  cluster_id UUID REFERENCES seo_clusters(id),
+  brief_id UUID REFERENCES seo_briefs(id),
   title TEXT NOT NULL,
   task_type TEXT NOT NULL CHECK (task_type IN (
     'CREATE_PAGE','OPTIMIZE_PAGE','WRITE_BLOG',
@@ -83,10 +84,10 @@ CREATE TABLE tasks (
 );
 
 -- Interventions (change log)
-CREATE TABLE interventions (
+CREATE TABLE IF NOT EXISTS seo_interventions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   project_id UUID REFERENCES seo_projects(id) ON DELETE CASCADE NOT NULL,
-  task_id UUID REFERENCES tasks(id),
+  task_id UUID REFERENCES seo_tasks(id),
   intervention_date DATE NOT NULL,
   intervention_type TEXT NOT NULL CHECK (intervention_type IN (
     'NEW_PAGE','CONTENT_UPDATE','META_OPTIMIZATION',
@@ -98,7 +99,7 @@ CREATE TABLE interventions (
 );
 
 -- GSC query-level snapshots
-CREATE TABLE gsc_snapshots (
+CREATE TABLE IF NOT EXISTS seo_gsc_snapshots (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   project_id UUID REFERENCES seo_projects(id) ON DELETE CASCADE NOT NULL,
   snapshot_date DATE NOT NULL,
@@ -112,7 +113,7 @@ CREATE TABLE gsc_snapshots (
 );
 
 -- GSC page-level daily aggregates
-CREATE TABLE gsc_page_daily (
+CREATE TABLE IF NOT EXISTS seo_gsc_page_daily (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   project_id UUID REFERENCES seo_projects(id) ON DELETE CASCADE NOT NULL,
   date DATE NOT NULL,
@@ -126,31 +127,26 @@ CREATE TABLE gsc_page_daily (
 );
 
 -- Content gaps
-CREATE TABLE content_gaps (
+CREATE TABLE IF NOT EXISTS seo_content_gaps (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   project_id UUID REFERENCES seo_projects(id) ON DELETE CASCADE NOT NULL,
-  cluster_id UUID REFERENCES clusters(id),
+  cluster_id UUID REFERENCES seo_clusters(id),
   gap_title TEXT NOT NULL,
   gap_description TEXT,
   priority TEXT CHECK (priority IN ('P1','P2','P3','P4')),
   source TEXT,
   status TEXT DEFAULT 'OPEN' CHECK (status IN ('OPEN','ASSIGNED','IN_PROGRESS','RESOLVED')),
-  task_id UUID REFERENCES tasks(id)
+  task_id UUID REFERENCES seo_tasks(id)
 );
 
 -- Indexes
-CREATE INDEX idx_clusters_project ON clusters(project_id);
-CREATE INDEX idx_keywords_cluster ON keywords(cluster_id);
-CREATE INDEX idx_tasks_project_week ON tasks(project_id, week_number);
-CREATE INDEX idx_tasks_status ON tasks(project_id, status);
-CREATE INDEX idx_interventions_project_date ON interventions(project_id, intervention_date);
-CREATE INDEX idx_gsc_snapshots_project_date ON gsc_snapshots(project_id, snapshot_date);
-CREATE INDEX idx_gsc_snapshots_page ON gsc_snapshots(page_url);
-CREATE INDEX idx_gsc_page_daily_project ON gsc_page_daily(project_id, date);
-CREATE INDEX idx_briefs_project ON briefs(project_id);
-CREATE INDEX idx_content_gaps_project ON content_gaps(project_id);
-
--- RLS (enable later when auth is set up)
--- ALTER TABLE seo_projects ENABLE ROW LEVEL SECURITY;
--- ALTER TABLE clusters ENABLE ROW LEVEL SECURITY;
--- etc.
+CREATE INDEX idx_seo_clusters_project ON seo_clusters(project_id);
+CREATE INDEX idx_seo_keywords_cluster ON seo_keywords(cluster_id);
+CREATE INDEX idx_seo_tasks_project_week ON seo_tasks(project_id, week_number);
+CREATE INDEX idx_seo_tasks_status ON seo_tasks(project_id, status);
+CREATE INDEX idx_seo_interventions_project_date ON seo_interventions(project_id, intervention_date);
+CREATE INDEX idx_seo_gsc_snapshots_project_date ON seo_gsc_snapshots(project_id, snapshot_date);
+CREATE INDEX idx_seo_gsc_snapshots_page ON seo_gsc_snapshots(page_url);
+CREATE INDEX idx_seo_gsc_page_daily_project ON seo_gsc_page_daily(project_id, date);
+CREATE INDEX idx_seo_briefs_project ON seo_briefs(project_id);
+CREATE INDEX idx_seo_content_gaps_project ON seo_content_gaps(project_id);

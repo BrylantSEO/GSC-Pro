@@ -19,8 +19,8 @@ export default async function PlannerPage() {
   }
 
   const { data: tasks } = await supabase
-    .from("tasks")
-    .select("*, cluster:clusters(*)")
+    .from("seo_tasks")
+    .select("*, cluster:seo_clusters(*)")
     .eq("project_id", project.id)
     .order("week_number")
     .order("sort_order");

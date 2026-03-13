@@ -41,38 +41,38 @@ export default async function DashboardPage() {
     { data: thisWeekTasks },
   ] = await Promise.all([
     supabase
-      .from("clusters")
+      .from("seo_clusters")
       .select("*", { count: "exact", head: true })
       .eq("project_id", project.id),
     supabase
-      .from("keywords")
+      .from("seo_keywords")
       .select("*", { count: "exact", head: true })
       .in(
         "cluster_id",
         (
           await supabase
-            .from("clusters")
+            .from("seo_clusters")
             .select("id")
             .eq("project_id", project.id)
         ).data?.map((c: { id: string }) => c.id) || []
       ),
     supabase
-      .from("tasks")
+      .from("seo_tasks")
       .select("*", { count: "exact", head: true })
       .eq("project_id", project.id),
     supabase
-      .from("tasks")
+      .from("seo_tasks")
       .select("*", { count: "exact", head: true })
       .eq("project_id", project.id)
       .eq("status", "DONE"),
     supabase
-      .from("clusters")
+      .from("seo_clusters")
       .select("*")
       .eq("project_id", project.id)
       .order("potential_score", { ascending: false }),
     supabase
-      .from("tasks")
-      .select("*, cluster:clusters(*)")
+      .from("seo_tasks")
+      .select("*, cluster:seo_clusters(*)")
       .eq("project_id", project.id)
       .eq("week_number", getCurrentWeek(project.created_at))
       .order("sort_order"),

@@ -26,7 +26,7 @@ export default async function InterventionsPage() {
   }
 
   const { data: interventions } = await supabase
-    .from("interventions")
+    .from("seo_interventions")
     .select("*")
     .eq("project_id", project.id)
     .order("intervention_date", { ascending: false });

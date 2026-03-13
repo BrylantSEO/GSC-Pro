@@ -30,7 +30,7 @@ export default async function UrlTrackerPage({ params }: PageProps) {
 
   // Fetch page daily data
   const { data: dailyData } = await supabase
-    .from("gsc_page_daily")
+    .from("seo_gsc_page_daily")
     .select("*")
     .eq("project_id", project.id)
     .eq("page_url", pageUrl)
@@ -38,7 +38,7 @@ export default async function UrlTrackerPage({ params }: PageProps) {
 
   // Fetch query-level data (latest snapshot)
   const { data: queryData } = await supabase
-    .from("gsc_snapshots")
+    .from("seo_gsc_snapshots")
     .select("*")
     .eq("project_id", project.id)
     .eq("page_url", pageUrl)
@@ -47,7 +47,7 @@ export default async function UrlTrackerPage({ params }: PageProps) {
 
   // Fetch interventions for this URL
   const { data: interventions } = await supabase
-    .from("interventions")
+    .from("seo_interventions")
     .select("*")
     .eq("project_id", project.id)
     .contains("urls", [pageUrl])

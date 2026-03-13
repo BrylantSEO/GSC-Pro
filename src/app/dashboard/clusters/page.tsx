@@ -39,7 +39,7 @@ export default async function ClustersPage() {
   }
 
   const { data: clusters } = await supabase
-    .from("clusters")
+    .from("seo_clusters")
     .select("*")
     .eq("project_id", project.id)
     .order("potential_score", { ascending: false });
